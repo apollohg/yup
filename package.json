@@ -4,6 +4,9 @@
   "description": "Dead simple Object schema validation",
   "main": "lib/index.js",
   "module": "lib/index.esm.js",
+  "files": [
+    "lib"
+  ],
   "runkitExampleFilename": "./runkit-example.js",
   "scripts": {
     "test": "yarn lint && yarn testonly",
