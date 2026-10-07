@@ -31,7 +31,7 @@ import ValidationError from './ValidationError';
 import ReferenceSet from './util/ReferenceSet';
 import Reference from './Reference';
 import isAbsent from './util/isAbsent';
-import type { Flags, Maybe, ResolveFlags, _ } from './util/types';
+import type { Flags, Maybe, NoInfer, ResolveFlags, _ } from './util/types';
 import toArray from './util/toArray';
 import cloneDeep from './util/cloneDeep';
 import {
@@ -811,10 +811,30 @@ export default abstract class Schema<
     return next;
   }
 
-  when(builder: ConditionBuilder<this>): this;
-  when(keys: string | string[], builder: ConditionBuilder<this>): this;
-  when(options: ConditionConfig<this>): this;
-  when(keys: string | string[], options: ConditionConfig<this>): this;
+  /**
+   * The result is typed as the union of every schema a condition can resolve to;
+   * a missing `then` or `otherwise` branch resolves to this schema.
+   */
+  when<TResult extends ISchema<any, any> = this>(
+    builder: ConditionBuilder<this, TResult>,
+  ): TResult;
+  when<TResult extends ISchema<any, any> = this>(
+    keys: string | string[],
+    builder: ConditionBuilder<this, TResult>,
+  ): TResult;
+  when<
+    TThen extends ISchema<any, any> = this,
+    TOtherwise extends ISchema<any, any> = this,
+  >(
+    options: ConditionConfig<this, TThen, TOtherwise>,
+  ): NoInfer<TThen | TOtherwise>;
+  when<
+    TThen extends ISchema<any, any> = this,
+    TOtherwise extends ISchema<any, any> = this,
+  >(
+    keys: string | string[],
+    options: ConditionConfig<this, TThen, TOtherwise>,
+  ): NoInfer<TThen | TOtherwise>;
   when(
     keys: string | string[] | ConditionBuilder<this> | ConditionConfig<this>,
     options?: ConditionBuilder<this> | ConditionConfig<this>,

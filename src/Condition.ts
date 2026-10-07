@@ -2,16 +2,19 @@ import isSchema from './util/isSchema';
 import Reference from './Reference';
 import type { ISchema } from './types';
 
-export type ConditionBuilder<T extends ISchema<any, any>> = (
-  values: any[],
-  schema: T,
-  options: ResolveOptions,
-) => ISchema<any>;
+export type ConditionBuilder<
+  T extends ISchema<any, any>,
+  TResult extends ISchema<any, any> = ISchema<any>,
+> = (values: any[], schema: T, options: ResolveOptions) => TResult;
 
-export type ConditionConfig<T extends ISchema<any>> = {
+export type ConditionConfig<
+  T extends ISchema<any>,
+  TThen extends ISchema<any, any> = ISchema<any>,
+  TOtherwise extends ISchema<any, any> = ISchema<any>,
+> = {
   is: any | ((...values: any[]) => boolean);
-  then?: (schema: T) => ISchema<any>;
-  otherwise?: (schema: T) => ISchema<any>;
+  then?: (schema: T) => TThen;
+  otherwise?: (schema: T) => TOtherwise;
 };
 
 export type ResolveOptions<TContext = any> = {

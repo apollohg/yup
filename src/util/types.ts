@@ -2,6 +2,9 @@ export type IfAny<T, Y, N> = 0 extends 1 & T ? Y : N;
 
 export type Maybe<T> = T | null | undefined;
 
+/** Blocks inference from this position, e.g. a call's contextual return type (TS < 5.4 NoInfer). */
+export type NoInfer<T> = [T][T extends any ? 0 : never];
+
 export type Preserve<T, U> = T extends U ? U : never;
 
 export type Optionals<T> = Extract<T, null | undefined>;

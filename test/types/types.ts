@@ -17,6 +17,10 @@ import { create as lazy } from '../../src/Lazy';
 import ObjectSchema, { create as object } from '../../src/object';
 
 import { ResolveFlags, SetFlag, UnsetFlag, _ } from '../../src/util/types';
+import type { AnyObject, InferType } from '../../src';
+import type NumberSchema from '../../src/number';
+import type StringSchema from '../../src/string';
+import { expectTypeOf } from 'vitest';
 
 ResolveFlags: {
   // $ExpectType string | undefined
@@ -1009,38 +1013,92 @@ Object: {
   }
 }
 
-// Conditions: {
-//   // $ExpectType NumberSchema<number | undefined, AnyObject, undefined, ""> | StringSchema<string, AnyObject, undefined, "">
-//   string().when('foo', ([foo], schema) => (foo ? schema.required() : number()));
+Conditions: {
+  const builderUnion = string().when('foo', ([foo], schema) =>
+    foo ? schema.required() : number(),
+  );
+  expectTypeOf(builderUnion).toEqualTypeOf<
+    StringSchema<string, AnyObject, undefined, ''> | NumberSchema
+  >();
 
-//   // $ExpectType StringSchema<string | undefined, AnyObject, undefined, "">
-//   string()
-//     .when('foo', ([foo], schema) => (foo ? schema.required() : schema))
-//     .when('foo', ([foo], schema) => (foo ? schema.required() : schema));
+  const chained = string()
+    .when('foo', ([foo], schema) => (foo ? schema.required() : schema))
+    .when('foo', ([foo], schema) => (foo ? schema.required() : schema));
+  expectTypeOf<InferType<typeof chained>>().toEqualTypeOf<string | undefined>();
 
-//   // $ExpectType NumberSchema<number | undefined, AnyObject, undefined, ""> | StringSchema<string, AnyObject, undefined, "">
-//   string().when('foo', {
-//     is: true,
-//     then: () => number(),
-//     otherwise: (s) => s.required(),
-//   });
+  const configUnion = string().when('foo', {
+    is: true,
+    then: () => number(),
+    otherwise: (s) => s.required(),
+  });
+  expectTypeOf(configUnion).toEqualTypeOf<
+    NumberSchema | StringSchema<string, AnyObject, undefined, ''>
+  >();
 
-//   const result = object({
-//     foo: bool().defined(),
-//     polyField: mixed<string>().when('foo', {
-//       is: true,
-//       then: () => number(),
-//       otherwise: (s) => s.required(),
-//     }),
-//   }).cast({ foo: true, polyField: '1' });
+  const thenOnly = string().when('foo', {
+    is: true,
+    then: (s) => s.required(),
+  });
+  expectTypeOf<InferType<typeof thenOnly>>().toEqualTypeOf<
+    string | undefined
+  >();
 
-//   // $ExpectType { polyField?: string | number | undefined; foo: boolean; }
-//   result;
+  const swapped = object({ supplier: string().nullable() }).when([], {
+    is: () => true,
+    then: () => object({ supplier: string().required() }),
+  });
+  expectTypeOf<InferType<typeof swapped>>().toEqualTypeOf<
+    { supplier?: string | null | undefined } | { supplier: string }
+  >();
 
-//   mixed()
-//     .when('foo', ([foo]) => (foo ? string() : number()))
-//     .min(1);
-// }
+  const inlineMissingBranch = object({
+    company: bool().required(),
+    abn: string()
+      .nullable()
+      .when('company', { is: true, otherwise: (s) => s.strip() }),
+    contact: string()
+      .nullable()
+      .when('company', { is: true, then: (s) => s.required() }),
+  });
+  expectTypeOf<InferType<typeof inlineMissingBranch>>().toEqualTypeOf<{
+    abn?: string | null | undefined;
+    contact?: string | null | undefined;
+    company: boolean;
+  }>();
+
+  const conditionalStrip = object({
+    company: bool().required(),
+    contactName: string()
+      .nullable()
+      .when('company', {
+        is: false,
+        then: (s) => s.required(),
+        otherwise: (s) => s.strip(),
+      }),
+    removed: string().strip(),
+  });
+  expectTypeOf<InferType<typeof conditionalStrip>>().toEqualTypeOf<{
+    contactName?: string | undefined;
+    company: boolean;
+  }>();
+
+  const result = object({
+    foo: bool().defined(),
+    polyField: mixed<string>().when('foo', {
+      is: true,
+      then: () => number(),
+      otherwise: (s) => s.required(),
+    }),
+  }).cast({ foo: true, polyField: '1' });
+  expectTypeOf(result).toEqualTypeOf<{
+    polyField?: string | number | undefined;
+    foo: boolean;
+  }>();
+
+  mixed()
+    .when('foo', ([foo]) => (foo ? string() : number()))
+    .min(1);
+}
 
 TypeAssigning: {
   const _schema: ObjectSchema<{

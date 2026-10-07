@@ -1,4 +1,4 @@
-import type { Maybe, Optionals } from './types';
+import type { IfAny, Maybe, Optionals } from './types';
 import type Reference from '../Reference';
 import type { ISchema } from '../types';
 
@@ -6,15 +6,25 @@ export type ObjectShape = { [k: string]: ISchema<any> | Reference };
 
 export type AnyObject = { [k: string]: any };
 
-export type ResolveStrip<T extends ISchema<any>> = T extends ISchema<
-  any,
-  any,
-  infer F
->
+type IsStripped<T extends ISchema<any>> = T extends ISchema<any, any, infer F>
+  ? IfAny<F, false, Extract<F, 's'> extends never ? false : true>
+  : false;
+
+type KeptOutput<T extends ISchema<any>> = T extends ISchema<any, any, infer F>
   ? Extract<F, 's'> extends never
     ? T['__outputType']
     : never
   : T['__outputType'];
+
+/**
+ * A stripped schema has no output key. When only some branches of a
+ * conditional schema strip, the key is optional instead.
+ */
+export type ResolveStrip<T extends ISchema<any>> = true extends IsStripped<T>
+  ? false extends IsStripped<T>
+    ? KeptOutput<T> | undefined
+    : never
+  : KeptOutput<T>;
 
 export type TypeFromShape<S extends ObjectShape, _C> = {
   [K in keyof S]: S[K] extends ISchema<any>
