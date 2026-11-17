@@ -1,0 +1,50 @@
+name: Publish
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+env:
+  PACKAGE_NAME: '@apollohg/yup'
+  REGISTRY: https://npm.pkg.github.com
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          registry-url: ${{ env.REGISTRY }}
+          scope: '@apollohg'
+      - run: yarn install --immutable
+      - run: yarn testonly
+      - run: yarn build
+      - name: Publish <version>-<sha>
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(node -p "require('./package.json').version")-$(git rev-parse --short HEAD)"
+          if npm view "$PACKAGE_NAME@$version" version > /dev/null 2>&1; then
+            echo "$PACKAGE_NAME@$version is already published"
+            exit 0
+          fi
+          stage="$(mktemp -d)"
+          npm pack --pack-destination "$stage"
+          tar -xzf "$stage"/*.tgz -C "$stage"
+          cd "$stage/package"
+          npm pkg set name="$PACKAGE_NAME" version="$version" repository.type=git \
+            repository.url="git+https://github.com/$GITHUB_REPOSITORY.git" publishConfig.registry="$REGISTRY"
+          npm publish --ignore-scripts --tag fork
